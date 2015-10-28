@@ -4,14 +4,15 @@ import codecs
 import unicodecsv as csv
 import re
 
-# get ank-themas.json from 
+# get ank-themas.json from initial ANK map viewer requests
+# http://www.atlasnatuurlijkkapitaal.nl/kaarten?p_p_id=atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=getThemas&p_p_cacheability=cacheLevelPage&p_p_col_id=column-1&p_p_col_count=1
 
 with open('ank-themas.json', 'r') as f:
 	themes = load(f)['atlas.themas']
 
 ank_f = open('ank.csv', 'w')
 writer = csv.writer(ank_f, delimiter=';')
-writer.writerow("naam", "samenvatting", "thema", "thema samenvatting", "onderwerp", "type", "eigenaar", "service type", "data url", "kaart url", "laagnaam")
+writer.writerow(["naam", "samenvatting", "thema", "thema samenvatting", "onderwerp", "type", "eigenaar", "service type", "data url", "kaart url", "laagnaam"])
 
 # broken_f = codecs.open('ank-broken.csv', 'w', encoding='utf8')
 
@@ -52,10 +53,9 @@ for theme in themes:
 
 			try:
 				map_info = content['bijsluiterTabs'][1]['tekst']
-
 			except IndexError:
-				print "Error: indicator has no Over de Kaart tab"
-				print content
+				print "Error: indicator has no 'Over de Kaart tab'"
+				# print content
 				failed_url.append([name, theme_name, 'missing map info tab'])
 
 			if len(map_info) > 0:
@@ -74,30 +74,24 @@ for theme in themes:
 						f.write(map_info)
 
 				except IOError:
-					print "Error, can't save friendly name as it contains illegal characters..."
+					print "Error, can't save bijsluiter with a friendly name as it contains illegal characters..."
 					print "Saving indicator id instead..."
 					with codecs.open('bijsluiters/%s.html' % (id_), 'w', encoding='utf8') as g:
 						g.write(map_info)
+
+				row = [name, summary, theme_name, theme_summary, subject, type_, data_owner, service_type, data_url, map_url, layer]
+				writer.writerow(row)
+
 			else:
 				print "Error: empty Over de Kaart tab"
 				failed_url.append([name, theme_name, 'empty map info tab'])
+		
 		else:
 			print "Error: server returned 404. %s has no bijsluiter... ?" % name
 			failed_url.append([name, theme_name, 'missing bijsluiter'])
-
-
-		row = [name, summary, theme_name, theme_summary, subject, type_, data_owner, service_type, data_url, map_url, layer]
-		
-		# try:
-		writer.writerow(row)
-		# except UnicodeEncodeError:
-		# 	print "Warning... encountered Unicode Encoding error, dumping to ank-broken.csv"
-		# 	broken_f.write('%s;%s\n' % (name, theme_name))
 
 with open('failed_urls.csv', 'w') as f:
 	for url in failed_url:
 		f.write('%s;%s;%s\n' % tuple(url))
 
 ank_f.close()
-# broken_f.close()
-
