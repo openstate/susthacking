@@ -29,10 +29,13 @@ def find_data(url, layer):
 				soup = BS(r.text, 'xml')
 				error = soup.find('ExceptionText').string
 
-				return wfs_url, error
+				if 'unknown' in error:
+					error = 'Deze databron is alleen als WMS beschikbaar, gebruik kaart url om gegevens op te halen'
+
+				return '', error
 		else:
-			error = "HTTP 404"
-			return wfs_url, error
+			error = r.status_code
+			return '', error
 	else:
 		return url, error
 
@@ -63,7 +66,7 @@ for theme in themes:
 		subject = indicator['onderwerp']
 		# type_ = indicator['type']
 
-		map_url = indicator['uiKaartProxy']['mapUrl']
+		# map_url = indicator['uiKaartProxy']['mapUrl']
 		layer = indicator['uiKaartProxy']['layerName']
 		data_owner = indicator['uiKaartProxy']['bronhouderNaam']
 		# service_type = indicator['uiKaartProxy']['serviceType']
@@ -78,17 +81,26 @@ for theme in themes:
 
 		# print "Processing", name, theme_name
 
-		r = requests.get("http://www.atlasnatuurlijkkapitaal.nl/kaarten?p_p_id=atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=getBijsluiters&p_p_cacheability=cacheLevelPage&p_p_col_id=column-1&p_p_col_count=1&_atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh_epsg=28992&indicatorId=%s&x=176988.16&y=493008&epsg=28992" % id_) 
+		r = requests.get("http://www.atlasnatuurlijkkapitaal.nl/kaarten?p_p_id=atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=getBijsluiters&p_p_cacheability=cacheLevelPage&p_p_col_id=column-1&p_p_col_count=1&_atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh_epsg=28992&indicatorId=%s&x=176988.16&y=493008&epsg=28992" % id_)
+
 		if r.status_code == 200:
 			bijsluiter = r.json()
-			content = bijsluiter['bijsluiters'][0]
 
+			try:
+				content = bijsluiter['bijsluiters'][0]
+			except IndexError:
+				print "Error %s has no bijsluiter (server returned 200)" % name 
+				failed_url.append([name, theme_name, 'missing bijsluiter (200)'])
+				continue
+
+			map_info = ''
 			try:
 				map_info = content['bijsluiterTabs'][1]['tekst']
 			except IndexError:
-				print "Error: indicator has no 'Over de Kaart tab'"
+				print "Error: %s has no 'Over de Kaart tab'" % name
 				# print content
 				failed_url.append([name, theme_name, 'missing map info tab'])
+				continue
 
 			if len(map_info) > 0:
 				url_re = re.search('(?<=<\/strong>)http:\/\/[^c].+?(?=<br \/>)', map_info)
@@ -112,16 +124,25 @@ for theme in themes:
 					with codecs.open('bijsluiters/%s.html' % (id_), 'w', encoding='utf8') as g:
 						g.write(map_info)
 
-				row = [name, summary, theme_name, subject, data_owner, data_url, data_url_error, map_url, layer]
+				parameters = "SERVICE=WMS&VERSION=1.0.0&REQUEST=GetMap&LAYERS=%s&STYLES=&BBOX=13014,306243,286599,623492&WIDTH=400&HEIGHT=500&FORMAT=image/png&SRS=EPSG:28992" % layer
+				
+				if url[-1] == "?":
+					map_url = url + parameters
+				else:
+					map_url = url + "?%s" % parameters
+
+				if 'pdf' in map_url: map_url = ""
+
+				row = [name, summary, theme_name, subject, data_owner, '=HYPERLINK("%s")' % data_url, data_url_error, '=HYPERLINK("%s")' % map_url, layer]
 				writer.writerow(row)
 
 			else:
-				print "Error: empty Over de Kaart tab"
+				print "Error: %s has an empty 'Over de Kaart' tab" % name
 				failed_url.append([name, theme_name, 'empty map info tab'])
 		
 		else:
 			print "Error: server returned 404. %s has no bijsluiter... ?" % name
-			failed_url.append([name, theme_name, 'missing bijsluiter'])
+			failed_url.append([name, theme_name, 'missing bijsluiter (404)' ])
 
 with open('failed_urls.csv', 'w') as f:
 	for url in failed_url:
