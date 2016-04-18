@@ -1,9 +1,10 @@
 from json import load
+from bs4 import BeautifulSoup as BS
+import os
 import requests
 import codecs
 import unicodecsv as csv
 import re
-from bs4 import BeautifulSoup as BS
 
 def find_data(url, layer):
 	wfs_url = re.sub(re.compile(ur'wms', re.IGNORECASE), 'wfs', url)
@@ -42,7 +43,15 @@ def find_data(url, layer):
 
 # get ank-themas.json from initial ANK map viewer requests
 # http://www.atlasnatuurlijkkapitaal.nl/kaarten?p_p_id=atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=getThemas&p_p_cacheability=cacheLevelPage&p_p_col_id=column-1&p_p_col_count=1
-with open('ank-themas.json', 'r') as f:
+
+
+atlas = 'ank'
+# atlas = 'alo'
+
+themas = os.path.join('data', atlas, 'themas.json')
+path_out = os.path.join('data', atlas, '%.csv' % atlas)
+
+with open(path, 'r') as f:
 	themes = load(f)['atlas.themas']
 
 ank_f = open('ank.csv', 'w')
@@ -103,7 +112,7 @@ for theme in themes:
 				continue
 
 			if len(map_info) > 0:
-				url_re = re.search('(?<=<\/strong>)http:\/\/[^c].+?(?=<br \/>)', map_info)
+				url_re = re.search('(?<=dataset: <\/strong>)http:\/\/[^c].+?(?=<br \/>)', map_info)
 
 				# print re.findall('(?<=<\/strong>)http:\/\/[^c].+?(?=<br \/>)', map_info)
 
@@ -113,15 +122,17 @@ for theme in themes:
 				else:
 					print "Failed to find URL... "
 					failed_url.append([name, theme_name, 'no data url found in info tab'])
+					continue
 
+				path = os.path.join('data', atlas, 'bijsluiters'
 				try:
-					with codecs.open('bijsluiters/%s_%s.html' % (name, theme_name), 'w', encoding='utf8') as f:
+					with codecs.open(path +  '/%s_%s.html' % (name, theme_name)), 'w', encoding='utf8') as f:
 						f.write(map_info)
 
 				except IOError:
 					print "Error, can't save bijsluiter with a friendly name as it contains illegal characters..."
 					print "Saving indicator id instead..."
-					with codecs.open('bijsluiters/%s.html' % (id_), 'w', encoding='utf8') as g:
+					with codecs.open(path + '/%s.html' % (id_), 'w', encoding='utf8') as g:
 						g.write(map_info)
 
 				parameters = "SERVICE=WMS&VERSION=1.0.0&REQUEST=GetMap&LAYERS=%s&STYLES=&BBOX=13014,306243,286599,623492&WIDTH=400&HEIGHT=500&FORMAT=image/png&SRS=EPSG:28992" % layer
@@ -144,8 +155,8 @@ for theme in themes:
 			print "Error: server returned 404. %s has no bijsluiter... ?" % name
 			failed_url.append([name, theme_name, 'missing bijsluiter (404)' ])
 
-with open('failed_urls.csv', 'w') as f:
-	for url in failed_url:
-		f.write('%s;%s;%s\n' % tuple(url))
+# with open('failed_urls.csv', 'w') as f:
+# 	for url in failed_url:
+# 		f.write('%s;%s;%s\n' % tuple(url))
 
 ank_f.close()
