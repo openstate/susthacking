@@ -23,7 +23,7 @@ def find_data(url, layer):
 		try:
 			r = requests.get(wfs_url + limit, timeout=5)
 		except requests.exceptions.ConnectionError:
-			return url, 'Niet gelukt om verbinding met server te maken'
+			return url, 'Kon geen verbinding maken met server.'
 		except requests.exceptions.Timeout:
 			return url, 'Timeout na 5 seconden'
 
@@ -37,7 +37,7 @@ def find_data(url, layer):
 				error = soup.find('ExceptionText').string
 
 				if 'unknown' in error:
-					error = 'Deze databron is alleen als WMS beschikbaar, gebruik kaart url om gegevens op te halen'
+					error = 'Alleen als bechikbaar als afbeelding (WMS), zie kaart_url kolom.'
 
 				return '', error
 		else:
@@ -91,7 +91,8 @@ for theme in themes:
 
 		# map_url = indicator['uiKaartProxy']['mapUrl']
 		layer = indicator['uiKaartProxy']['layerName']
-		data_owner = indicator['uiKaartProxy']['bronhouderNaam']		
+		data_owner = indicator['uiKaartProxy']['bronhouderNaam']
+		
 
 		# service_type = indicator['uiKaartProxy']['serviceType']
 
@@ -171,8 +172,8 @@ for theme in themes:
 			print "Error: server returned 404. %s has no bijsluiter... ?" % name
 			failed_url.append([name, theme_name, 'missing bijsluiter (404)' ])
 
-# with open('failed_urls.csv', 'w') as f:
-# 	for url in failed_url:
-# 		f.write('%s;%s;%s\n' % tuple(url))
-
+path_failed = os.path.join('data', atlas, 'failed.csv')
+with open(path_failed, 'w') as f:
+	for url in failed_url:
+		f.write('%s;%s;%s\n' % tuple(url))
 ank_f.close()
