@@ -20,7 +20,13 @@ def find_data(url, layer):
 		else:
 			wfs_url += "?" + parameters
 		
-		r = requests.get(wfs_url + limit)
+		try:
+			r = requests.get(wfs_url + limit, timeout=5)
+		except requests.exceptions.ConnectionError:
+			return url, 'Niet gelukt om verbinding met server te maken'
+		except requests.exceptions.Timeout:
+			return url, 'Timeout na 5 seconden'
+
 		if r.status_code == 200:
 			try:
 				a = r.json()
@@ -44,23 +50,25 @@ def find_data(url, layer):
 # get ank-themas.json from initial ANK map viewer requests
 # http://www.atlasnatuurlijkkapitaal.nl/kaarten?p_p_id=atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=getThemas&p_p_cacheability=cacheLevelPage&p_p_col_id=column-1&p_p_col_count=1
 
-
-atlas = 'ank'
-# atlas = 'alo'
+meta_url = {
+	'ank': 'http://www.atlasnatuurlijkkapitaal.nl/kaarten?p_p_id=atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=getBijsluiters&p_p_cacheability=cacheLevelPage&p_p_col_id=column-1&p_p_col_count=1&_atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh_epsg=28992&indicatorId=%s&x=176988.16&y=493008&epsg=28992',
+	'alo': 'http://www.atlasleefomgeving.nl/kijken?p_p_id=atlasMap_WAR_atlasfrontendportlet_INSTANCE_Gs2j&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=getBijsluiters&p_p_cacheability=cacheLevelPage&p_p_col_id=column-1&p_p_col_count=5&_atlasMap_WAR_atlasfrontendportlet_INSTANCE_Gs2j_epsg=28992&indicatorId=%s&x=160000&y=450000&epsg=28992'
+}
+# atlas = 'ank'
+atlas = 'alo'
 
 path_themas = os.path.join('data', atlas, 'themas.json')
-path_out = os.path.join('data', atlas, '%.csv' % atlas)
+path_out = os.path.join('data', atlas, '%s.csv' % atlas)
 path_bijsluiters = os.path.join('data', atlas, 'bijsluiters')
-
-with open(path_themas, 'r') as f:
-	themes = load(f)['atlas.themas']
 
 ank_f = open(path_out, 'w')
 writer = csv.writer(ank_f, delimiter=';')
 writer.writerow(["naam", "samenvatting", "thema", "onderwerp", "eigenaar", "data url", "data url error", "kaart url", "laagnaam"])
 
-# broken_f = codecs.open('ank-broken.csv', 'w', encoding='utf8')
+with open(path_themas, 'r') as f:
+	themes = load(f)['atlas.themas']
 
+# broken_f = codecs.open('ank-broken.csv', 'w', encoding='utf8')
 failed_url = []
 
 for theme in themes:
@@ -70,7 +78,12 @@ for theme in themes:
 	indicators = theme['childIndicators']
 
 	for indicator in indicators:
-		id_ = indicator['id']
+		# use this id for ANK
+
+		if atlas == 'alo':
+			id_ = '-' + str(indicator['uiKaartProxy']['id'])
+		else:
+			id_ = indicator['id']
 		name = indicator['naam']
 		summary = indicator['samenvatting']
 		subject = indicator['onderwerp']
@@ -78,7 +91,8 @@ for theme in themes:
 
 		# map_url = indicator['uiKaartProxy']['mapUrl']
 		layer = indicator['uiKaartProxy']['layerName']
-		data_owner = indicator['uiKaartProxy']['bronhouderNaam']
+		data_owner = indicator['uiKaartProxy']['bronhouderNaam']		
+
 		# service_type = indicator['uiKaartProxy']['serviceType']
 
 		#test if service returns sane Capabilities document
@@ -91,7 +105,9 @@ for theme in themes:
 
 		# print "Processing", name, theme_name
 
-		r = requests.get("http://www.atlasnatuurlijkkapitaal.nl/kaarten?p_p_id=atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=getBijsluiters&p_p_cacheability=cacheLevelPage&p_p_col_id=column-1&p_p_col_count=1&_atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh_epsg=28992&indicatorId=%s&x=176988.16&y=493008&epsg=28992" % id_)
+		# url = "http://www.atlasnatuurlijkkapitaal.nl/kaarten?p_p_id=atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=getBijsluiters&p_p_cacheability=cacheLevelPage&p_p_col_id=column-1&p_p_col_count=1&_atlasMap_WAR_atlasfrontendportlet_INSTANCE_FotTSS5BXAUh_epsg=28992&indicatorId=%s&x=176988.16&y=493008&epsg=28992" % id_
+		# print meta_url[atlas] % id_
+		r = requests.get(meta_url[atlas] % id_)
 
 		if r.status_code == 200:
 			bijsluiter = r.json()
@@ -106,7 +122,7 @@ for theme in themes:
 			map_info = ''
 			try:
 				map_info = content['bijsluiterTabs'][1]['tekst']
-			except IndexError:
+			except (IndexError, TypeError):
 				print "Error: %s has no 'Over de Kaart tab'" % name
 				# print content
 				failed_url.append([name, theme_name, 'missing map info tab'])
@@ -121,7 +137,7 @@ for theme in themes:
 					url = url_re.group(0)
 					data_url, data_url_error = find_data(url, layer)
 				else:
-					print "Failed to find URL... "
+					print "Failed to find data URL... "
 					failed_url.append([name, theme_name, 'no data url found in info tab'])
 					continue
 
