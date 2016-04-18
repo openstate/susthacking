@@ -48,13 +48,14 @@ def find_data(url, layer):
 atlas = 'ank'
 # atlas = 'alo'
 
-themas = os.path.join('data', atlas, 'themas.json')
+path_themas = os.path.join('data', atlas, 'themas.json')
 path_out = os.path.join('data', atlas, '%.csv' % atlas)
+path_bijsluiters = os.path.join('data', atlas, 'bijsluiters')
 
-with open(path, 'r') as f:
+with open(path_themas, 'r') as f:
 	themes = load(f)['atlas.themas']
 
-ank_f = open('ank.csv', 'w')
+ank_f = open(path_out, 'w')
 writer = csv.writer(ank_f, delimiter=';')
 writer.writerow(["naam", "samenvatting", "thema", "onderwerp", "eigenaar", "data url", "data url error", "kaart url", "laagnaam"])
 
@@ -124,15 +125,14 @@ for theme in themes:
 					failed_url.append([name, theme_name, 'no data url found in info tab'])
 					continue
 
-				path = os.path.join('data', atlas, 'bijsluiters'
 				try:
-					with codecs.open(path +  '/%s_%s.html' % (name, theme_name)), 'w', encoding='utf8') as f:
+					with codecs.open(path_bijsluiters +  '/%s_%s.html' % (name, theme_name), 'w', encoding='utf8') as f:
 						f.write(map_info)
 
 				except IOError:
 					print "Error, can't save bijsluiter with a friendly name as it contains illegal characters..."
 					print "Saving indicator id instead..."
-					with codecs.open(path + '/%s.html' % (id_), 'w', encoding='utf8') as g:
+					with codecs.open(path_bijsluiters + '/%s.html' % (id_), 'w', encoding='utf8') as g:
 						g.write(map_info)
 
 				parameters = "SERVICE=WMS&VERSION=1.0.0&REQUEST=GetMap&LAYERS=%s&STYLES=&BBOX=13014,306243,286599,623492&WIDTH=400&HEIGHT=500&FORMAT=image/png&SRS=EPSG:28992" % layer
