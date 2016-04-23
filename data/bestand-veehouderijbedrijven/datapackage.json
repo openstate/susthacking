@@ -1,0 +1,21 @@
+{
+  "resources": [
+    {
+      "name": "bestand-veehouderijbedrijven",
+      "path": "data/bestand-veehouderijbedrijven.geojson",
+      "format": "geojson",
+      "mediatype": "application/json",
+      "bytes": 44425978
+    }
+  ],
+  "name": "bestand-veehouderijbedrijven",
+  "title": "",
+  "description": "",
+  "homepage": "",
+  "version": "0.1.0",
+  "license": "ODC-PDDL-1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openstate/susthacking/data/bestand-veehouderijbedrijven"
+  }
+}
