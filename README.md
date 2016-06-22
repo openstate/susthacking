@@ -14,3 +14,6 @@ Links
 License
 
 This Hacking for Sustainability example code is licensed under CC0.
+
+
+[![Join the chat at https://gitter.im/openstate/susthacking](https://badges.gitter.im/openstate/susthacking.svg)](https://gitter.im/openstate/susthacking?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
